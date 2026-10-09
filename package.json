@@ -1,0 +1,60 @@
+{
+  "name": "leomox",
+  "version": "1.0.0",
+  "description": "LeoMox Voice AI Platform - AI voice agents, campaigns, RAG knowledge base, call analytics",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -k -n API,WEB -c blue,green \"npm:server:dev\" \"npm:client:dev\"",
+    "server:dev": "node --watch server/index.js",
+    "client:dev": "vite",
+    "build": "vite build",
+    "start": "node server/index.js",
+    "db:init": "node server/db/init.js",
+    "db:seed": "node server/db/seed.js",
+    "lint": "eslint src server --ext .js,.jsx",
+    "db:migrate": "node server/db/migrate.js",
+    "wire:portal": "node scripts/wire-portal.mjs",
+    "test:security": "node tests/run-all.mjs",
+    "audit": "node tests/audit.mjs",
+    "test": "node tests/run-all.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.600.0",
+    "@aws-sdk/s3-request-presigner": "^3.600.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "csv-parse": "^5.5.6",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.2.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mammoth": "^1.7.2",
+    "multer": "^1.4.5-lts.1",
+    "multer-storage-cloudinary": "^4.0.0",
+    "pdf-parse": "^1.1.1",
+    "pg": "^8.11.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.23.1",
+    "recharts": "^2.12.7",
+    "uuid": "^9.0.1",
+    "vite": "^5.2.11",
+    "ws": "^8.17.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@electric-sql/pglite-pgvector": "^0.0.9",
+    "@electric-sql/pglite-socket": "^0.2.11",
+    "concurrently": "^8.2.2",
+    "esbuild": "^0.28.2",
+    "eslint": "^8.57.0",
+    "jsdom": "^29.1.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

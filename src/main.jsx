@@ -14,3 +14,5 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     </BrowserRouter>
   </React.StrictMode>
 );
+   import CustomerGate from "./portal/CustomerGate.jsx";
+   <CustomerGate> ...your existing routes and layout... </CustomerGate>

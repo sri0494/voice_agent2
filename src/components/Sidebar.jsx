@@ -47,5 +47,3 @@ export default function Sidebar({ open, onClose }) {
     </>
   );
 }
-   { path: "/recordings", label: "Recordings" },
-   { path: "/customer-accounts", label: "Customer Accounts" },

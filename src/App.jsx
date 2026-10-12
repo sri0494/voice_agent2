@@ -80,7 +80,3 @@ export default function App() {
     </Routes>
   );
 }
-   import AdminCustomers from "./pages/AdminCustomers.jsx";
-   import Recordings from "./pages/Recordings.jsx";
-   <Route path="/customer-accounts" element={<AdminCustomers />} />
-   <Route path="/recordings" element={<Recordings />} />

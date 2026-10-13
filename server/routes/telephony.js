@@ -25,6 +25,12 @@ const REPLAY_WINDOW_SEC = 5 * 60;
 //    with X-Webhook-Timestamp inside a 5-minute window (replay protection).
 //  - mock outside production: accepted (nothing external calls these endpoints in development).
 function validateWebhookSignature(req) {
+  // Exotel callbacks carry no signature: the URL we gave Exotel contains ?token=<TELEPHONY_WEBHOOK_SECRET> (constant-time compare).
+  if (activeProviderName === "exotel") {
+    const secret = process.env.TELEPHONY_WEBHOOK_SECRET, token = String(req.query?.token || "");
+    const a = Buffer.from(token), b = Buffer.from(secret || "");
+    return Boolean(secret) && a.length === b.length && crypto.timingSafeEqual(a, b);
+  }
   if (activeProviderName === "twilio") return validateTwilioSignature(req, process.env.TELEPHONY_API_SECRET);
   if (telephonyProvider.isMock() && process.env.NODE_ENV !== "production") return true;
   const secret = process.env.TELEPHONY_WEBHOOK_SECRET;
@@ -46,7 +52,36 @@ function mapProviderStatus(status) {
     };
     return map[status] || status;
   }
+  if (activeProviderName === "exotel") {
+    const map = {
+      queued: "Ringing", ringing: "Ringing", "in-progress": "Connected", "in_progress": "Connected",
+      completed: "Completed", busy: "Failed", failed: "Failed", "no-answer": "Missed", "no_answer": "Missed", canceled: "Failed",
+    };
+    return map[String(status).toLowerCase()] || status;
+  }
   return status;
+}
+
+// Stores one provider recording (legacy row + copy into OUR private bucket). Exotel: never for a call whose caller declined consent.
+async function ingestProviderRecording({ providerCallId, recordingUrl, durationSec }) {
+  const { rows } = await query(`SELECT id, consent_status FROM calls WHERE provider_call_id = $1`, [String(providerCallId || "")]);
+  if (!rows[0] || !recordingUrl) return;
+  const callId = rows[0].id;
+  if (activeProviderName === "exotel" && rows[0].consent_status === "DECLINED") {
+    logger.warn("recording_skipped_consent_declined", { callId }); return;
+  }
+  await query(
+    `INSERT INTO call_recordings (call_id, url, duration_sec)
+     SELECT $1, $2, $3 WHERE NOT EXISTS (SELECT 1 FROM call_recordings WHERE call_id = $1 AND url = $2)`,
+    [callId, String(recordingUrl), durationSec]);
+  // Copy the audio into OUR private bucket (consent + retention rules apply there). Twilio media needs Basic auth.
+  const headers = activeProviderName === "twilio"
+    ? { Authorization: `Basic ${Buffer.from(`${process.env.TELEPHONY_API_KEY}:${process.env.TELEPHONY_API_SECRET}`).toString("base64")}` } : {};
+  const job = ingestRecordingFromUrl({
+    callId, url: String(recordingUrl), headers, durationSec,
+    fetchUrl: activeProviderName === "twilio" && !/\.(mp3|wav)$/i.test(String(recordingUrl)) ? `${recordingUrl}.mp3` : null,
+  }).catch((e) => logger.warn("recording_ingest_skipped", { callId, reason: e.message }));
+  if (process.env.WEBHOOK_INGEST_SYNC === "true") await job;
 }
 
 // --- Authenticated: place an outbound call for a contact within a campaign ---
@@ -94,8 +129,8 @@ router.post("/status", webhookLimiter, async (req, res, next) => {
     if (!validateWebhookSignature(req)) throw new ApiError(401, "Invalid webhook signature");
 
     const providerCallId = req.body.CallSid || req.body.providerCallId;
-    const rawStatus = req.body.CallStatus || req.body.status;
-    const durationRaw = req.body.CallDuration ?? req.body.durationSec ?? null;
+    const rawStatus = req.body.CallStatus || req.body.Status || req.body.status;
+    const durationRaw = req.body.CallDuration ?? req.body.Duration ?? req.body.durationSec ?? null;
     const durationSec = durationRaw !== null && Number.isFinite(Number(durationRaw)) ? Math.max(0, Math.round(Number(durationRaw))) : null;
     const status = rawStatus ? mapProviderStatus(String(rawStatus)) : null;
 
@@ -121,6 +156,10 @@ router.post("/status", webhookLimiter, async (req, res, next) => {
         logger.info("call_status_ignored", { providerCallId, status, reason: "duplicate, out-of-order or unknown call" });
       }
     }
+    // Exotel's status callback carries RecordingUrl once the call has ended.
+    if (activeProviderName === "exotel" && req.body.RecordingUrl && providerCallId) {
+      await ingestProviderRecording({ providerCallId, recordingUrl: req.body.RecordingUrl, durationSec });
+    }
     res.status(200).send("");
   } catch (err) { next(err); }
 });
@@ -135,22 +174,7 @@ router.post("/recording", webhookLimiter, async (req, res, next) => {
     const d = Number(req.body.RecordingDuration ?? req.body.durationSec);
     const durationSec = Number.isFinite(d) ? Math.round(d) : null;
 
-    const { rows } = await query(`SELECT id FROM calls WHERE provider_call_id = $1`, [String(providerCallId || "")]);
-    if (rows[0] && recordingUrl) {
-      const callId = rows[0].id;
-      await query(
-        `INSERT INTO call_recordings (call_id, url, duration_sec)
-         SELECT $1, $2, $3 WHERE NOT EXISTS (SELECT 1 FROM call_recordings WHERE call_id = $1 AND url = $2)`,
-        [callId, String(recordingUrl), durationSec]);
-      // Copy the audio into OUR private bucket (consent + retention rules apply there). Twilio media needs Basic auth.
-      const headers = activeProviderName === "twilio"
-        ? { Authorization: `Basic ${Buffer.from(`${process.env.TELEPHONY_API_KEY}:${process.env.TELEPHONY_API_SECRET}`).toString("base64")}` } : {};
-      const job = ingestRecordingFromUrl({
-        callId, url: String(recordingUrl), headers, durationSec,
-        fetchUrl: activeProviderName === "twilio" && !/\.(mp3|wav)$/i.test(String(recordingUrl)) ? `${recordingUrl}.mp3` : null,
-      }).catch((e) => logger.warn("recording_ingest_skipped", { callId, reason: e.message }));
-      if (process.env.WEBHOOK_INGEST_SYNC === "true") await job;
-    }
+    await ingestProviderRecording({ providerCallId, recordingUrl, durationSec });
     res.status(200).send("");
   } catch (err) { next(err); }
 });

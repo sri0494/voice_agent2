@@ -75,7 +75,7 @@ check("AI_PROVIDER=gemini without AI_API_KEY -> error; embeddings google needs a
 check("TELEPHONY_PROVIDER=twilio needs its keys + PUBLIC_BASE_URL", has({ ...base_, TELEPHONY_PROVIDER: "twilio" }, "TELEPHONY_API_KEY") && has({ ...base_, TELEPHONY_PROVIDER: "twilio" }, "PUBLIC_BASE_URL"));
 check("unknown telephony / storage providers are errors", has({ ...base_, TELEPHONY_PROVIDER: "foo" }, "Unknown TELEPHONY_PROVIDER") && has({ ...base_, STORAGE_PROVIDER: "ftp" }, "Unknown STORAGE_PROVIDER"));
 check("mock providers stay valid in development", validateEnv({ NODE_ENV: "development", DATABASE_URL: "x", JWT_SECRET: "x".repeat(32) }).errors.length === 0);
-check("STT/TTS without a standalone adapter produce an honest warning (not a silent no-op)", validateEnv({ ...base_, STT_PROVIDER: "sarvam" }).warnings.some((w) => w.includes("no standalone adapter")));
+check("STT/TTS: sarvam needs a key; an unknown provider is an error (never a silent no-op)", has({ ...base_, STT_PROVIDER: "sarvam" }, "STT_PROVIDER=sarvam but") && has({ ...base_, TTS_PROVIDER: "foo" }, "Unknown TTS_PROVIDER") && !validateEnv({ ...base_, STT_PROVIDER: "sarvam", STT_API_KEY: "k" }).errors.length);
 
 console.log("\n== Storage: R2/S3 presigned URLs (child process) ==");
 const run = (env, ...args) => { const r = spawnSync("node", [path.join(here, "helpers/storage-child.mjs"), ...args], { env: { ...process.env, ...env }, encoding: "utf8" }); return JSON.parse(r.stdout.trim().split("\n").pop()); };

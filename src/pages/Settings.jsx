@@ -98,7 +98,7 @@ function UsersTab() {
     setSaving(true);
     try {
       await api.createUser(form);
-      setForm({ name: "", email: "", phone: "", role: "AGENT", password: "" });
+      setForm({ name: "", email: "", phone: "", agentId: "", role: "AGENT", password: "" });
       setShowForm(false);
       load();
     } catch (err) {

@@ -26,6 +26,8 @@ import Surveys from "./pages/Surveys.jsx";
 import SurveyDetail from "./pages/SurveyDetail.jsx";
 import AgentSteering from "./pages/ai-engine/AgentSteering.jsx";
 import ConversationTestPanel from "./pages/ai-engine/ConversationTestPanel.jsx";
+import Recordings from "./pages/Recordings.jsx";
+import AdminCustomers from "./pages/AdminCustomers.jsx";
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -73,6 +75,8 @@ export default function App() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/surveys" element={<Surveys />} />
         <Route path="/surveys/:id" element={<SurveyDetail />} />
+        <Route path="/recordings" element={<Recordings />} />
+        <Route path="/customer-accounts" element={<AdminCustomers />} />
       </Route>
 
       <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import * as api from "../services/api.js";
+import { openLiveCallsSocket } from "../services/http.js";
 import StatusBadge from "../components/StatusBadge.jsx";
 import { LoadingState, ErrorState, EmptyState } from "../components/DataState.jsx";
 
@@ -26,8 +27,8 @@ export default function LiveCalls() {
     // Prefer WebSocket push updates over polling; fall back to a slow poll
     // if the socket can't connect (e.g. behind certain proxies).
     try {
-      const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const ws = new WebSocket(`${proto}//${window.location.host}/ws/live-calls`);
+      // The server now requires the login token on this socket; openLiveCallsSocket() sends it.
+      const ws = openLiveCallsSocket();
       wsRef.current = ws;
       ws.onmessage = () => load();
       ws.onerror = () => {};

@@ -6,6 +6,7 @@ import { logger } from "./utils/logger.js";
 import { assertEnvOrExit } from "./config/env.js";
 import { createApp } from "./app.js";
 import { attachLiveCallsServer } from "./services/liveCalls.js";
+import { attachExotelStreamServer } from "./services/voice/exotelStream.js";
 import { startCampaignDialer } from "./services/campaigns/campaignDialer.js";
 import { startRetentionJob } from "./services/recordings.js";
 import { verifyAuditTable } from "./services/audit.js";
@@ -16,6 +17,7 @@ assertEnvOrExit(logger);   // production refuses to start with an unsafe or inco
 const app = createApp();
 const server = http.createServer(app);
 attachLiveCallsServer(server);   // authenticated + tenant-scoped /ws/live-calls
+attachExotelStreamServer(server); // Exotel Voicebot audio stream /ws/exotel (shared-secret authenticated)
 
 // Fail fast (with a readable message) if `npm run db:migrate` has not been run.
 async function assertSchemaReady() {

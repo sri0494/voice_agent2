@@ -164,6 +164,60 @@ export class TwilioProvider extends TelephonyProvider {
   isMock() { return false; }
 }
 
+
+// Real implementation — Exotel (India). Outbound calls use the Calls/connect API pointed at YOUR Exotel flow (an App Bazaar flow
+// that contains a Voicebot/AgentStream applet streaming audio to wss://<this app>/ws/exotel). The conversation itself runs in
+// services/voice/exotelStream.js (Sarvam STT/TTS + Gemini). Recording is configured in the Exotel flow (applet-level).
+//
+// Requires: TELEPHONY_API_KEY (Exotel API key), TELEPHONY_API_SECRET (API token), EXOTEL_ACCOUNT_SID, TELEPHONY_PHONE_NUMBER (ExoPhone),
+// EXOTEL_FLOW_URL (the flow's start URL, e.g. http://my.exotel.com/<sid>/exoml/start_voice/<app_id>), PUBLIC_BASE_URL, TELEPHONY_WEBHOOK_SECRET.
+// EXOTEL_SUBDOMAIN defaults to api.exotel.com (use api.in.exotel.com for the Mumbai cluster accounts).
+export class ExotelProvider extends TelephonyProvider {
+  constructor({ apiKey, apiToken, accountSid, subdomain, fromNumber, flowUrl, publicBaseUrl, webhookSecret, fetchImpl }) {
+    super();
+    const missing = [["TELEPHONY_API_KEY", apiKey], ["TELEPHONY_API_SECRET", apiToken], ["EXOTEL_ACCOUNT_SID", accountSid], ["EXOTEL_FLOW_URL", flowUrl],
+      ["TELEPHONY_PHONE_NUMBER", fromNumber], ["PUBLIC_BASE_URL", publicBaseUrl], ["TELEPHONY_WEBHOOK_SECRET", webhookSecret]].filter(([, v]) => !v).map(([k]) => k);
+    if (missing.length) throw new Error(`${missing.join(", ")} required when TELEPHONY_PROVIDER=exotel`);
+    Object.assign(this, { apiKey, apiToken, accountSid, fromNumber, flowUrl, webhookSecret });
+    this.host = (subdomain || "api.exotel.com").replace(/^https?:\/\//, "").replace(/\/$/, "");
+    this.publicBaseUrl = publicBaseUrl.replace(/\/$/, "");
+    this.fetch = fetchImpl || fetch;
+  }
+  _auth() { return { Authorization: `Basic ${Buffer.from(`${this.apiKey}:${this.apiToken}`).toString("base64")}` }; }
+
+  async makeCall({ to, from, callId }) {
+    const params = new URLSearchParams({
+      From: String(to), CallerId: from || this.fromNumber, Url: this.flowUrl, CallType: "trans",
+      CustomField: String(callId || ""),
+      StatusCallback: `${this.publicBaseUrl}/api/telephony/status?token=${encodeURIComponent(this.webhookSecret)}`,
+    });
+    const res = await this.fetch(`https://${this.host}/v1/Accounts/${this.accountSid}/Calls/connect.json`, {
+      method: "POST", headers: { ...this._auth(), "Content-Type": "application/x-www-form-urlencoded" }, body: params.toString(), signal: AbortSignal.timeout(15000) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(`Exotel API error ${res.status}: ${data?.RestException?.Message || JSON.stringify(data).slice(0, 200)}`);
+    const sid = data?.Call?.Sid;
+    if (!sid) throw new Error("Exotel did not return a Call Sid");
+    return { providerCallId: sid, status: "Ringing", mock: false };
+  }
+  async receiveCall() { throw new Error("Inbound Exotel calls are configured on the ExoPhone's flow, not initiated from here."); }
+  async hangup() { throw new Error("Exotel offers no documented server-side hangup; the voice stream ends the call by closing the stream (the flow then reaches its Hangup applet)."); }
+  async transfer() { throw new Error("Exotel transfer is done in the flow (Connect applet after the Voicebot applet), not through an API call from here."); }
+  async startRecording() { return { skipped: true, note: "Exotel recording is applet-level; enable it in the flow." }; }
+  async getCallStatus(callSid) {
+    const res = await this.fetch(`https://${this.host}/v1/Accounts/${this.accountSid}/Calls/${encodeURIComponent(callSid)}.json`, { headers: this._auth(), signal: AbortSignal.timeout(15000) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(`Exotel API error ${res.status}`);
+    return { status: data?.Call?.Status || "Unknown", mock: false };
+  }
+  async getRecording(callSid) {
+    const res = await this.fetch(`https://${this.host}/v1/Accounts/${this.accountSid}/Calls/${encodeURIComponent(callSid)}.json`, { headers: this._auth(), signal: AbortSignal.timeout(15000) });
+    const data = await res.json().catch(() => ({}));
+    const url = data?.Call?.RecordingUrl || null;
+    return url ? { url, mock: false } : { url: null, mock: false, note: "No recording found for this call" };
+  }
+  isMock() { return false; }
+}
+
 export function createTelephonyProvider() {
   const provider = (process.env.TELEPHONY_PROVIDER || "mock").toLowerCase();
   switch (provider) {
@@ -176,11 +230,16 @@ export function createTelephonyProvider() {
         fromNumber: process.env.TELEPHONY_PHONE_NUMBER,
         publicBaseUrl: process.env.PUBLIC_BASE_URL,
       });
-    // case "exotel":     return new ExotelProvider({ apiKey: process.env.TELEPHONY_API_KEY, apiSecret: process.env.TELEPHONY_API_SECRET, from: process.env.TELEPHONY_PHONE_NUMBER });
+    case "exotel":
+      return new ExotelProvider({
+        apiKey: process.env.TELEPHONY_API_KEY, apiToken: process.env.TELEPHONY_API_SECRET, accountSid: process.env.EXOTEL_ACCOUNT_SID,
+        subdomain: process.env.EXOTEL_SUBDOMAIN, fromNumber: process.env.TELEPHONY_PHONE_NUMBER, flowUrl: process.env.EXOTEL_FLOW_URL,
+        publicBaseUrl: process.env.PUBLIC_BASE_URL, webhookSecret: process.env.TELEPHONY_WEBHOOK_SECRET,
+      });
     // case "knowlarity": return new KnowlarityProvider({ ... });
     // case "ozonetel":   return new OzonetelProvider({ ... });
     default:
-      console.warn(`[telephony] Unknown TELEPHONY_PROVIDER="${provider}", falling back to mock. Real calls will NOT be made. Valid values: mock, twilio.`);
+      console.warn(`[telephony] Unknown TELEPHONY_PROVIDER="${provider}", falling back to mock. Real calls will NOT be made. Valid values: mock, twilio, exotel.`);
       return new MockTelephonyProvider();
   }
 }

@@ -64,6 +64,6 @@ Last run (PGlite): units 44, access 210, recordings 57, ws 27, ops 52, data 80, 
 
 ## 8. Known limits
 - `tests/fixtures/schema.sql` approximates your production schema; I never saw your real `db/schema.sql`.
-- Sarvam STT/TTS adapters are **not** included (mock only); Twilio's recording start is untested against a live account.
+- Exotel + Sarvam adapters are included (see `EXOTEL_SARVAM_SETUP.md`) but untested against the live services; Twilio's recording start is also untested against a live account.
 - No UI yet for: agent consent/retention fields, the Phone Numbers and Knowledge Base delete buttons (the backend delete endpoints exist), the customer dropdown on the campaign form, and the Calls status filter page (backend filter is fixed). Those frontend pages were not provided.
 - Not run against real Render, Neon, Twilio or R2.

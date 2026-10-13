@@ -1,0 +1,36 @@
+/* Dashboard (index page) styles. Uses the app's existing colour variables, so light and dark themes keep working. */
+.dx-hero{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:14px;margin-bottom:18px}
+.dx-hello{font-size:24px;font-weight:700;letter-spacing:-.01em}
+.dx-sub{color:var(--text-secondary);font-size:13px;margin-top:3px}
+.dx-actions{display:flex;gap:8px;flex-wrap:wrap}
+.dx-seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.dx-seg button{background:transparent;border:0;color:var(--text-secondary);padding:6px 12px;font-size:12.5px;cursor:pointer}
+.dx-seg button.on{background:var(--bg-hover);color:var(--text-primary,inherit);font-weight:600}
+.dx-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:14px}
+.dx-kpi{background:var(--bg-card,var(--bg-elevated));border:1px solid var(--border);border-radius:12px;padding:16px 18px;position:relative;overflow:hidden}
+.dx-kpi:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent,var(--cyan))}
+.dx-kpi .l{font-size:12px;color:var(--text-secondary);display:flex;gap:6px;align-items:center}
+.dx-kpi .v{font-size:30px;font-weight:700;margin-top:6px;line-height:1.1}
+.dx-kpi .n{font-size:11.5px;color:var(--text-muted);margin-top:6px}
+.dx-mini{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:10px;margin-bottom:18px}
+.dx-mini a,.dx-mini div{background:var(--bg-card,var(--bg-elevated));border:1px solid var(--border);border-radius:10px;padding:10px 12px;display:block;color:inherit}
+.dx-mini .l{font-size:11px;color:var(--text-secondary)}
+.dx-mini .v{font-size:18px;font-weight:700;margin-top:2px}
+.dx-grid{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:14px}
+.dx-grid3{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:14px;margin-bottom:14px}
+.dx-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.dx-h b{font-size:14px}.dx-h a{font-size:12px;color:var(--cyan)}
+.dx-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}
+.dx-row:last-child{border-bottom:0}
+.dx-row small{color:var(--text-secondary);display:block;font-size:11.5px;margin-top:2px}
+.dx-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:8px;background:var(--text-muted)}
+.dx-dot.ok{background:var(--green)}.dx-dot.err{background:var(--red)}.dx-dot.off{background:var(--amber)}
+.dx-legend{display:flex;flex-direction:column;gap:6px;font-size:12.5px}
+.dx-legend span{display:flex;align-items:center;gap:8px}.dx-legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.dx-legend em{margin-left:auto;font-style:normal;color:var(--text-secondary)}
+.dx-steps{list-style:none;margin:0;padding:0}.dx-steps li{display:flex;gap:10px;align-items:center;padding:8px 0;font-size:13px;border-bottom:1px solid var(--border)}
+.dx-steps li:last-child{border-bottom:0}.dx-steps .c{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--border);display:grid;place-items:center;font-size:11px}
+.dx-steps li.done .c{background:var(--green);border-color:var(--green);color:#fff}.dx-steps li.done span{color:var(--text-muted);text-decoration:line-through}
+@media (max-width:1200px){.dx-mini{grid-template-columns:repeat(4,minmax(0,1fr))}.dx-grid3{grid-template-columns:1fr 1fr}}
+@media (max-width:900px){.dx-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.dx-grid,.dx-grid3{grid-template-columns:1fr}}
+@media (max-width:520px){.dx-kpis{grid-template-columns:1fr}.dx-mini{grid-template-columns:repeat(2,minmax(0,1fr))}}

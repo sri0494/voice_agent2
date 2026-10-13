@@ -34,24 +34,20 @@ function evaluateProvider({ envVar, value, implemented, requiredKeys = [] }) {
 router.get("/", async (req, res, next) => {
   try {
     const ai = evaluateProvider({ envVar: "AI_PROVIDER", value: process.env.AI_PROVIDER, implemented: ["gemini"], requiredKeys: ["AI_API_KEY"] });
-    const stt = evaluateProvider({ envVar: "STT_PROVIDER", value: process.env.STT_PROVIDER, implemented: [], requiredKeys: [] });
-    const tts = evaluateProvider({ envVar: "TTS_PROVIDER", value: process.env.TTS_PROVIDER, implemented: [], requiredKeys: [] });
+    const speechKeys = (k) => (process.env.SARVAM_API_KEY ? [] : [k]);
+    const stt = evaluateProvider({ envVar: "STT_PROVIDER", value: process.env.STT_PROVIDER, implemented: ["sarvam"], requiredKeys: speechKeys("STT_API_KEY") });
+    const tts = evaluateProvider({ envVar: "TTS_PROVIDER", value: process.env.TTS_PROVIDER, implemented: ["sarvam"], requiredKeys: speechKeys("TTS_API_KEY") });
     const telephony = evaluateProvider({
-      envVar: "TELEPHONY_PROVIDER", value: process.env.TELEPHONY_PROVIDER, implemented: ["twilio"],
-      requiredKeys: ["TELEPHONY_API_KEY", "TELEPHONY_API_SECRET", "TELEPHONY_PHONE_NUMBER", "PUBLIC_BASE_URL"],
+      envVar: "TELEPHONY_PROVIDER", value: process.env.TELEPHONY_PROVIDER, implemented: ["twilio", "exotel"],
+      requiredKeys: ["TELEPHONY_API_KEY", "TELEPHONY_API_SECRET", "TELEPHONY_PHONE_NUMBER", "PUBLIC_BASE_URL",
+        ...((process.env.TELEPHONY_PROVIDER || "").toLowerCase() === "exotel" ? ["EXOTEL_ACCOUNT_SID", "EXOTEL_FLOW_URL", "TELEPHONY_WEBHOOK_SECRET"] : [])],
     });
     const embeddings = evaluateProvider({ envVar: "EMBEDDING_PROVIDER", value: process.env.EMBEDDING_PROVIDER, implemented: ["google", "gemini"], requiredKeys: [] });
 
     const builtIn = [
       { name: "AI Provider", type: "AI", envVar: "AI_PROVIDER", value: process.env.AI_PROVIDER || "mock", ...ai },
-      { name: "Speech to Text", type: "STT", envVar: "STT_PROVIDER", value: process.env.STT_PROVIDER || "mock", ...stt,
-        detail: process.env.STT_PROVIDER && process.env.STT_PROVIDER !== "mock"
-          ? "No standalone STT provider is implemented. Real speech recognition happens via Twilio's built-in <Gather> when Telephony Provider = twilio."
-          : stt.detail },
-      { name: "Text to Speech", type: "TTS", envVar: "TTS_PROVIDER", value: process.env.TTS_PROVIDER || "mock", ...tts,
-        detail: process.env.TTS_PROVIDER && process.env.TTS_PROVIDER !== "mock"
-          ? "No standalone TTS provider is implemented. Real speech output happens via Twilio's built-in <Say> when Telephony Provider = twilio."
-          : tts.detail },
+      { name: "Speech to Text", type: "STT", envVar: "STT_PROVIDER", value: process.env.STT_PROVIDER || "mock", ...stt },
+      { name: "Text to Speech", type: "TTS", envVar: "TTS_PROVIDER", value: process.env.TTS_PROVIDER || "mock", ...tts },
       { name: "Telephony", type: "TELEPHONY", envVar: "TELEPHONY_PROVIDER", value: process.env.TELEPHONY_PROVIDER || "mock", ...telephony },
       { name: "Embeddings", type: "EMBEDDING", envVar: "EMBEDDING_PROVIDER", value: process.env.EMBEDDING_PROVIDER || "mock", ...embeddings },
     ];

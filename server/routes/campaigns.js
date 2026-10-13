@@ -17,11 +17,12 @@ const needUuid = (v) => { if (!UUID_RE.test(String(v))) throw new ApiError(400, 
 router.get("/", async (req, res, next) => {
   try {
     const { rows } = await query(
-      `SELECT c.*, a.name AS agent_name,
+      `SELECT c.*, a.name AS agent_name, cl.name AS client_name,
         (SELECT COUNT(*) FROM contacts WHERE campaign_id = c.id) AS contact_count,
         (SELECT COUNT(*) FROM calls WHERE campaign_id = c.id) AS call_count
        FROM campaigns c
        LEFT JOIN agents a ON a.id = c.agent_id
+       LEFT JOIN clients cl ON cl.id = c.client_id
        ORDER BY c.created_at DESC`
     );
     res.json({ success: true, data: rows, message: "Success" });

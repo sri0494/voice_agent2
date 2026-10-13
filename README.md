@@ -316,8 +316,8 @@ Generated references: `ENDPOINT_AUDIT.md` and `API_SECURITY_MATRIX.md`.
 ## 15. Providers and honest limits
 
 Intended production chain: Frontend -> LeoMox Node.js -> Gemini -> telephony provider -> Cloudflare R2 -> Neon PostgreSQL.
-Telephony is pluggable (`TelephonyProvider`); `mock` always works and is clearly labelled. Today `twilio` is the only real adapter, and it is optional.
+Telephony is pluggable (`TelephonyProvider`); `mock` always works and is clearly labelled. Real adapters: `twilio` (TwiML Gather/Say) and `exotel` (Voicebot audio stream + Sarvam speech + Gemini); both optional. Exotel setup: `EXOTEL_SARVAM_SETUP.md`.
 
-- **Sarvam STT/TTS adapters are not shipped.** `STT_PROVIDER` / `TTS_PROVIDER` other than `mock` only produce a startup warning.
+- **Exotel and Sarvam adapters are tested against mocked HTTP/WebSocket traffic only.** Their real API behaviour (Exotel stream messages and flow, Sarvam base URL, model and Telugu voice names) is unverified until you run test calls. Exotel offers no documented server-side hangup/transfer, so LeoMox ends a call by closing the stream and the Exotel flow must hold the Hangup (and optional Connect) applets.
 - **Twilio recording start** (`Calls/{sid}/Recordings.json`) was written from the API documentation and has not been run against a live Twilio account.
 - Nothing here has been run against real Render, Neon, Twilio or R2 services.

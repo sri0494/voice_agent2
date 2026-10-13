@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import * as api from "../services/api.js";
+import { http } from "../services/http.js";
 import StatusBadge from "../components/StatusBadge.jsx";
 import { LoadingState, ErrorState, EmptyState } from "../components/DataState.jsx";
 
@@ -45,6 +46,11 @@ export default function PhoneNumbers() {
     load();
   };
 
+  const handleDelete = async (n) => {
+    if (!confirm(`Remove ${n.number}? Calls already made are kept.`)) return;
+    try { await http(`/phone-numbers/${n.id}`, { method: "DELETE" }); load(); } catch (err) { alert(err.message); }
+  };
+
   if (state === "loading") return <LoadingState label="Loading phone numbers..." />;
   if (state === "error") return <ErrorState onRetry={load} />;
 
@@ -87,7 +93,7 @@ export default function PhoneNumbers() {
       ) : (
         <div className="table-wrap">
           <table>
-            <thead><tr><th>Number</th><th>Provider</th><th>Assigned Agent</th><th>Inbound</th><th>Outbound</th><th>Status</th></tr></thead>
+            <thead><tr><th>Number</th><th>Provider</th><th>Assigned Agent</th><th>Inbound</th><th>Outbound</th><th>Status</th><th></th></tr></thead>
             <tbody>
               {numbers.map((n) => (
                 <tr key={n.id}>
@@ -102,6 +108,7 @@ export default function PhoneNumbers() {
                   <td>{n.inbound_enabled ? "✅" : "—"}</td>
                   <td>{n.outbound_enabled ? "✅" : "—"}</td>
                   <td><StatusBadge status={n.status} /></td>
+                  <td><button className="btn btn-sm btn-danger" onClick={() => handleDelete(n)}>Delete</button></td>
                 </tr>
               ))}
             </tbody>

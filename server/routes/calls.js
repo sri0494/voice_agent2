@@ -33,7 +33,8 @@ router.get("/", async (req, res, next) => {
     params.push(limit);
 
     const { rows } = await query(
-      `SELECT c.*, camp.name AS campaign_name, a.name AS agent_name
+      `SELECT c.*, camp.name AS campaign_name, a.name AS agent_name,
+              (SELECT count(*)::int FROM call_recording_files r WHERE r.call_id = c.id) AS recording_count
        FROM calls c
        LEFT JOIN campaigns camp ON camp.id = c.campaign_id
        LEFT JOIN agents a ON a.id = c.agent_id

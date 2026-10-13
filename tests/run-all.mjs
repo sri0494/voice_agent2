@@ -15,6 +15,7 @@ const suites = [
   ["access", "security.access.test.mjs", "authentication, role matrix, CUSTOMER vs admin APIs, tenant isolation (IDOR), permissions, assignment"],
   ["recordings", "security.recordings.test.mjs", "no public file endpoint, playback/download rules, uploads, consent, retention, webhooks"],
   ["ws", "security.ws.test.mjs", "WebSocket authentication, tenant-scoped events, session expiry"],
+  ["voice", "voice.exotel.test.mjs", "Exotel + Sarvam: provider, speech adapters, webhooks (token auth), voice-stream auth and conversation"],
   ["ops", "security.ops.test.mjs", "dialer idempotency, state machines, webhook idempotency, rate limits"],
   ["data", "security.data.test.mjs", "uploads, RAG isolation, integrations (SSRF + secrets), errors, regression smoke, audit"],
   ["ui", "security.ui.test.mjs", "customer portal UI against the real backend (jsdom)"],

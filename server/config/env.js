@@ -27,12 +27,19 @@ export function validateEnv(env = process.env) {
   if (emb !== "mock") need(v("EMBEDDING_API_KEY") || v("AI_API_KEY"), `EMBEDDING_PROVIDER=${emb} but EMBEDDING_API_KEY (or AI_API_KEY) is missing.`);
   for (const [name, key] of [["STT_PROVIDER", "STT_API_KEY"], ["TTS_PROVIDER", "TTS_API_KEY"]]) {
     const p = (v(name) || "mock").toLowerCase();
-    if (p !== "mock") warnings.push(`${name}=${p}: no standalone adapter ships with LeoMox yet; speech runs through the telephony provider (see README). ${key} is not used.`);
+    if (p === "sarvam") need(v(key) || v("SARVAM_API_KEY"), `${name}=sarvam but ${key} (or SARVAM_API_KEY) is missing.`);
+    else if (p !== "mock") errors.push(`Unknown ${name} "${p}" (implemented: mock, sarvam).`);
   }
   const tel = (v("TELEPHONY_PROVIDER") || "mock").toLowerCase();
   if (tel === "twilio") for (const k of ["TELEPHONY_API_KEY", "TELEPHONY_API_SECRET", "TELEPHONY_PHONE_NUMBER", "PUBLIC_BASE_URL"]) need(v(k), `TELEPHONY_PROVIDER=twilio but ${k} is missing.`);
   else if (tel === "mock" && prod && !v("TELEPHONY_WEBHOOK_SECRET")) warnings.push("TELEPHONY_PROVIDER=mock in production: webhooks are rejected unless TELEPHONY_WEBHOOK_SECRET is set.");
-  else if (!["mock", "twilio"].includes(tel)) errors.push(`Unknown TELEPHONY_PROVIDER "${tel}" (implemented: mock, twilio).`);
+  else if (tel === "exotel") {
+    for (const k of ["TELEPHONY_API_KEY", "TELEPHONY_API_SECRET", "EXOTEL_ACCOUNT_SID", "EXOTEL_FLOW_URL", "TELEPHONY_PHONE_NUMBER", "PUBLIC_BASE_URL", "TELEPHONY_WEBHOOK_SECRET"]) need(v(k), `TELEPHONY_PROVIDER=exotel but ${k} is missing.`);
+    if (v("TELEPHONY_WEBHOOK_SECRET") && v("TELEPHONY_WEBHOOK_SECRET").length < 24) (prod ? errors : warnings).push("TELEPHONY_WEBHOOK_SECRET should be at least 24 random characters (it is the only authentication of Exotel callbacks and the voice stream).");
+    if (v("STT_PROVIDER").toLowerCase() !== "sarvam" || v("TTS_PROVIDER").toLowerCase() !== "sarvam") warnings.push("TELEPHONY_PROVIDER=exotel needs STT_PROVIDER=sarvam and TTS_PROVIDER=sarvam for real spoken conversations; with mock speech the caller hears nothing.");
+    if (!v("RECORDING_URL_ALLOWLIST")) warnings.push("RECORDING_URL_ALLOWLIST is empty: set it to your Exotel recording host(s) so recordings can be copied into your private bucket.");
+  }
+  else if (!["mock", "twilio"].includes(tel)) errors.push(`Unknown TELEPHONY_PROVIDER "${tel}" (implemented: mock, twilio, exotel).`);
   if (!v("ENCRYPTION_KEY")) warnings.push("ENCRYPTION_KEY is not set: Business Integrations credentials cannot be stored.");
   if (prod && !v("CORS_ORIGIN")) warnings.push("CORS_ORIGIN is not set: any origin is allowed. Set it to your frontend URL.");
   return { errors, warnings };

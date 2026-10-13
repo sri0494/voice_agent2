@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import * as api from "../services/api.js";
+import { http } from "../services/http.js";
 import { LoadingState, ErrorState, EmptyState } from "../components/DataState.jsx";
 
 export default function KnowledgeBase() {
@@ -31,6 +32,12 @@ export default function KnowledgeBase() {
     }
   };
 
+  const handleDelete = async (e, kb) => {
+    e.preventDefault(); e.stopPropagation();           // the card is a link: do not open it
+    if (!confirm(`Delete knowledge base "${kb.name}" and its ${kb.document_count} documents? This cannot be undone.`)) return;
+    try { await http(`/knowledge-bases/${kb.id}`, { method: "DELETE" }); load(); } catch (err) { alert(err.message); }
+  };
+
   if (state === "loading") return <LoadingState label="Loading knowledge bases..." />;
   if (state === "error") return <ErrorState onRetry={load} />;
 
@@ -52,7 +59,10 @@ export default function KnowledgeBase() {
             <Link to={`/knowledge-base/${kb.id}`} key={kb.id} className="card" style={{ display: "block" }}>
               <div style={{ fontWeight: 700, marginBottom: 6 }}>{kb.name}</div>
               <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 10 }}>{kb.description || "No description"}</div>
-              <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>{kb.document_count} documents · {kb.chunk_count} chunks</div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>{kb.document_count} documents · {kb.chunk_count} chunks</div>
+                <button type="button" className="btn btn-sm btn-danger" onClick={(e) => handleDelete(e, kb)}>Delete</button>
+              </div>
             </Link>
           ))}
         </div>

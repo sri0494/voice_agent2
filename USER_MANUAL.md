@@ -424,13 +424,9 @@ one of three honest states:
 - **ERROR** (red) — you set a real provider name but something's missing
   (wrong env var name, missing key) — the card tells you exactly what's wrong
 
-### What still doesn't have a real adapter
+### Speech and telephony providers
 
-Speech-to-Text and Text-to-Speech as *standalone* providers are not
-implemented — and don't need to be, since Twilio handles both natively for
-real phone calls. If you set `STT_PROVIDER` or `TTS_PROVIDER` to anything
-other than `mock`, the Integrations page will now honestly show **ERROR**
-rather than falsely claiming connection.
+`STT_PROVIDER` / `TTS_PROVIDER` = `sarvam` (Telugu, Hindi, English speech) and `TELEPHONY_PROVIDER` = `exotel` or `twilio` are real adapters; the Integrations page shows **CONNECTED** only when the adapter exists and its keys are present. Any other value shows **ERROR**. With Exotel, the call's audio is streamed to LeoMox, spoken to and understood through Sarvam, and answered by Gemini; see `EXOTEL_SARVAM_SETUP.md` for the Exotel flow you must build.
 
 ---
 

@@ -60,6 +60,8 @@ export async function boot() {
   const { attachLiveCallsServer, closeLiveCallsServer } = await import("../server/services/liveCalls.js");
   const server = http.createServer(createApp());
   attachLiveCallsServer(server);
+  const { attachExotelStreamServer, closeExotelStreamServer } = await import("../server/services/voice/exotelStream.js");
+  attachExotelStreamServer(server);
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
   const port = server.address().port;
   const { pool, query } = await import("../server/db/pool.js");
@@ -72,7 +74,7 @@ export async function boot() {
         fs.mkdirSync(path.join(root, ".test-results"), { recursive: true });
         fs.writeFileSync(path.join(root, ".test-results", `${path.basename(process.argv[1])}.audit.json`), JSON.stringify(acts));
       } catch { /* best effort */ }
-      closeLiveCallsServer();
+      closeLiveCallsServer(); closeExotelStreamServer();
       await new Promise((r) => server.close(r));
       try { await pool.end(); } catch { /* connection already closed */ }
       if (state.mode === "postgres") {                  // in portable mode the whole in-process database is thrown away

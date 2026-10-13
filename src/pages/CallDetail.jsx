@@ -3,6 +3,8 @@ import { useParams, Link } from "react-router-dom";
 import * as api from "../services/api.js";
 import StatusBadge from "../components/StatusBadge.jsx";
 import { LoadingState, ErrorState } from "../components/DataState.jsx";
+import RecordingList from "../components/RecordingList.jsx";
+import VoiceRecorder from "../components/VoiceRecorder.jsx";
 
 const SPEAKER_COLOR = { AI: "cyan", CUSTOMER: "purple", HUMAN_AGENT: "green", SYSTEM: "muted" };
 
@@ -10,6 +12,7 @@ export default function CallDetail() {
   const { id } = useParams();
   const [call, setCall] = useState(null);
   const [state, setState] = useState("loading");
+  const [recKey, setRecKey] = useState(0);
 
   const load = async () => {
     setState("loading");
@@ -43,11 +46,14 @@ export default function CallDetail() {
           <Row label="Sentiment" value={call.sentiment ? <StatusBadge status={call.sentiment} /> : "—"} />
           <Row label="Intent" value={call.intent || "—"} />
           <Row label="Started" value={call.started_at ? new Date(call.started_at).toLocaleString() : "—"} />
+          <Row label="Ended" value={call.ended_at ? new Date(call.ended_at).toLocaleString() : "—"} />
+          <Row label="Direction" value={call.direction || "—"} />
+          <Row label="Recording consent" value={call.consent_status ? <span style={{ color: call.consent_status === "GRANTED" ? "var(--green)" : "var(--red)" }}>{call.consent_status === "GRANTED" ? "Granted" : "Declined"}</span> : "Not asked"} />
         </div>
 
         <div className="card">
           <div style={{ fontWeight: 700, marginBottom: 12 }}>Conversation Transcript</div>
-          {call.messages?.length === 0 ? (
+          {!call.messages?.length ? (
             <div style={{ color: "var(--text-secondary)", fontSize: 13.5 }}>No transcript available for this call.</div>
           ) : (
             <div>
@@ -62,6 +68,21 @@ export default function CallDetail() {
             </div>
           )}
         </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+          <div style={{ fontWeight: 700 }}>🎙️ Call Recordings</div>
+          <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Private files. Playback links are signed and expire after 5 minutes.</div>
+        </div>
+        {call.consent_status === "DECLINED" && (
+          <div style={{ fontSize: 12.5, color: "var(--amber)", marginBottom: 10 }}>The caller declined recording consent, so no phone recording is stored for this call.</div>
+        )}
+        <RecordingList callId={call.id} refreshKey={recKey} />
+        <details style={{ marginTop: 12 }}>
+          <summary style={{ cursor: "pointer", fontSize: 13, color: "var(--cyan)" }}>Add a voice note to this call</summary>
+          <div style={{ marginTop: 8 }}><VoiceRecorder callId={call.id} onSaved={() => setRecKey((k) => k + 1)} /></div>
+        </details>
       </div>
     </div>
   );

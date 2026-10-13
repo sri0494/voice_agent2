@@ -7,6 +7,7 @@ import { authenticateToken } from "../middleware/auth.js";
 import { ApiError } from "../middleware/errorHandler.js";
 import { query } from "../db/pool.js";
 import { logger } from "../utils/logger.js";
+import { registerUpgrade } from "./wsRouter.js";
 
 const PROTOCOL = "leomox.v1";
 const MAX_SOCKETS_PER_USER = 10;
@@ -36,10 +37,9 @@ function refuse(socket, status, message) {
 
 export function attachLiveCallsServer(server, { path = "/ws/live-calls" } = {}) {
   wss = new WebSocketServer({ noServer: true, handleProtocols: (protocols) => (protocols.has(PROTOCOL) ? PROTOCOL : false) });
-  server.on("upgrade", async (req, socket, head) => {
+  registerUpgrade(server, path, async (req, socket, head) => {
     let url;
     try { url = new URL(req.url, "http://localhost"); } catch { return socket.destroy(); }
-    if (url.pathname !== path) return socket.destroy();
     try {
       const token = tokenFrom(req, url);
       const user = await authenticateToken(token);

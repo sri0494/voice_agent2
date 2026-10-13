@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import * as api from "../services/api.js";
+import { http } from "../services/http.js";
 import StatusBadge from "../components/StatusBadge.jsx";
 import { LoadingState, ErrorState, EmptyState } from "../components/DataState.jsx";
 
@@ -9,18 +10,20 @@ const TYPES = ["Survey", "Outbound Sales", "Payment Reminder", "Appointment Remi
 export default function Campaigns() {
   const [campaigns, setCampaigns] = useState([]);
   const [agents, setAgents] = useState([]);
+  const [clients, setClients] = useState(null);   // null = not allowed to list customer accounts
   const [state, setState] = useState("loading");
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", type: "Survey", language: "English", agentId: "" });
+  const [form, setForm] = useState({ name: "", type: "Survey", language: "English", agentId: "", clientId: "" });
   const [saving, setSaving] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
 
   const load = async () => {
     setState("loading");
     try {
-      const [c, a] = await Promise.all([api.getCampaigns(), api.getAgents()]);
+      const [c, a, cl] = await Promise.all([api.getCampaigns(), api.getAgents(), http("/clients").catch(() => null)]);
       setCampaigns(c);
       setAgents(a);
+      setClients(Array.isArray(cl) ? cl.filter((x) => !/inactive|disabled/i.test(String(x.status || ""))) : null);
       setState("ready");
     } catch {
       setState("error");
@@ -33,9 +36,14 @@ export default function Campaigns() {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.createCampaign(form);
+      const { clientId, ...campaignData } = form;
+      const created = await api.createCampaign(campaignData);
+      if (clientId && created?.id) {
+        try { await http(`/clients/${clientId}/campaigns`, { method: "POST", body: { campaignIds: [created.id] } }); }
+        catch (err) { alert(`Campaign created, but it could not be assigned to the customer: ${err.message}`); }
+      }
       setShowForm(false);
-      setForm({ name: "", type: "Survey", language: "English", agentId: "" });
+      setForm({ name: "", type: "Survey", language: "English", agentId: "", clientId: "" });
       load();
     } catch (err) {
       alert(err.message);
@@ -100,6 +108,15 @@ export default function Campaigns() {
               </div>
             )}
           </div>
+          {clients && (
+            <div className="form-group">
+              <label>Customer account <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(optional: lets that customer see this campaign in their portal)</span></label>
+              <select className="input" value={form.clientId} onChange={(e) => setForm({ ...form, clientId: e.target.value })}>
+                <option value="">Not assigned</option>
+                {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+          )}
           <button className="btn btn-primary" disabled={saving}>{saving ? "Creating..." : "Create Campaign"}</button>
         </form>
       )}
@@ -110,7 +127,7 @@ export default function Campaigns() {
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>Name</th><th>Type</th><th>Agent</th><th>Status</th><th>Contacts</th><th>Calls</th><th>Actions</th></tr>
+              <tr><th>Name</th><th>Type</th><th>Agent</th>{clients && <th>Customer</th>}<th>Status</th><th>Contacts</th><th>Calls</th><th>Actions</th></tr>
             </thead>
             <tbody>
               {campaigns.map((c) => (
@@ -118,6 +135,7 @@ export default function Campaigns() {
                   <td><Link to={`/campaigns/${c.id}`} style={{ color: "var(--cyan)", fontWeight: 600 }}>{c.name}</Link></td>
                   <td>{c.type}</td>
                   <td>{c.agent_name || "—"}</td>
+                  {clients && <td>{c.client_name || "—"}</td>}
                   <td><StatusBadge status={c.status} /></td>
                   <td>{c.contact_count}</td>
                   <td>{c.call_count}</td>

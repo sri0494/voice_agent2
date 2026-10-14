@@ -107,7 +107,7 @@ export default function Dashboard() {
             <>
               <div style={{ position: "relative" }}>
                 <ResponsiveContainer width="100%" height={170}>
-                  <PieChart><Pie data={outcomes} dataKey="value" nameKey="name" innerRadius={52} outerRadius={78} paddingAngle={3} stroke="none">{outcomes.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip {...tip} /></PieChart>
+                  <PieChart><Pie data={outcomes} dataKey="value" nameKey="name" innerRadius={52} outerRadius={78} paddingAngle={outcomes.length > 1 ? 3 : 0} stroke="none">{outcomes.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip {...tip} /></PieChart>
                 </ResponsiveContainer>
                 <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", pointerEvents: "none" }}><div style={{ textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 700 }}>{outcomeTotal}</div><div style={{ fontSize: 11, color: "var(--text-secondary)" }}>calls</div></div></div>
               </div>

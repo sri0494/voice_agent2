@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { takeNotice } from "../services/sessionGuard.js";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -8,6 +9,7 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [notice] = useState(() => takeNotice()); // "Your session has expired. Please log in again."
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -59,6 +61,9 @@ export default function Login() {
             />
           </div>
 
+          {notice && !error && (
+            <div role="status" style={{ color: "var(--amber, #b45309)", fontSize: 13, marginBottom: 14 }}>{notice}</div>
+          )}
           {error && (
             <div style={{ color: "var(--red)", fontSize: 13, marginBottom: 14 }}>{error}</div>
           )}

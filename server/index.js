@@ -9,6 +9,7 @@ import { attachLiveCallsServer } from "./services/liveCalls.js";
 import { attachExotelStreamServer } from "./services/voice/exotelStream.js";
 import { startCampaignDialer } from "./services/campaigns/campaignDialer.js";
 import { startRetentionJob } from "./services/recordings.js";
+import { startSessionCleanup } from "./services/sessions.js";
 import { verifyAuditTable } from "./services/audit.js";
 import { query } from "./db/pool.js";
 
@@ -36,6 +37,7 @@ server.listen(PORT, "0.0.0.0", async () => {
   try { await assertSchemaReady(); await verifyAuditTable(); } catch (err) { logger.error("startup_check_failed", { error: err.message }); }
   startCampaignDialer();
   startRetentionJob();
+  startSessionCleanup();
 });
 
 process.on("SIGTERM", () => {

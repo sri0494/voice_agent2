@@ -18,6 +18,7 @@ export async function boot() {
   process.env.ENCRYPTION_KEY = crypto.randomBytes(32).toString("base64");
   process.env.PUBLIC_BASE_URL = "https://leomox.test";
   process.env.WS_REVALIDATE_MS = "400";
+  process.env.AUTH_REQUIRE_SESSION = process.env.AUTH_REQUIRE_SESSION || "false";   // older suites mint bare JWTs; the session suite sets "true"
   process.env.WEBHOOK_INGEST_SYNC = "true";
   process.env.RECORDING_MAX_MB = "1";
   process.env.MAX_CSV_ROWS = "50";

@@ -40,6 +40,10 @@ export function validateEnv(env = process.env) {
     if (!v("RECORDING_URL_ALLOWLIST")) warnings.push("RECORDING_URL_ALLOWLIST is empty: set it to your Exotel recording host(s) so recordings can be copied into your private bucket.");
   }
   else if (!["mock", "twilio"].includes(tel)) errors.push(`Unknown TELEPHONY_PROVIDER "${tel}" (implemented: mock, twilio, exotel).`);
+  for (const k of ["AUTH_IDLE_TIMEOUT_MIN", "AUTH_ABSOLUTE_TIMEOUT_HOURS", "AUTH_TAB_LIVENESS_SEC"]) if (v(k) && !(Number(v(k)) >= 0)) errors.push(`${k} must be a non-negative number.`);
+  if (v("AUTH_IDLE_TIMEOUT_MIN") && Number(v("AUTH_IDLE_TIMEOUT_MIN")) === 0) errors.push("AUTH_IDLE_TIMEOUT_MIN=0 would disable the inactivity timeout; use a positive number of minutes.");
+  if (Number(v("AUTH_IDLE_TIMEOUT_MIN") || 15) * 60 > Number(v("AUTH_ABSOLUTE_TIMEOUT_HOURS") || 8) * 3600) warnings.push("AUTH_IDLE_TIMEOUT_MIN is longer than AUTH_ABSOLUTE_TIMEOUT_HOURS: the absolute limit will always win.");
+  if (v("AUTH_REQUIRE_SESSION") === "false" && prod) errors.push("AUTH_REQUIRE_SESSION=false accepts tokens without a server-side session; it is for tests/rollouts only and is refused in production.");
   if (!v("ENCRYPTION_KEY")) warnings.push("ENCRYPTION_KEY is not set: Business Integrations credentials cannot be stored.");
   if (prod && !v("CORS_ORIGIN")) warnings.push("CORS_ORIGIN is not set: any origin is allowed. Set it to your frontend URL.");
   return { errors, warnings };

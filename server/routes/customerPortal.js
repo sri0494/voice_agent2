@@ -12,6 +12,7 @@ import { playbackFor, streamLocal, getRecordingRow } from "../services/recording
 import { audit } from "../services/audit.js";
 import { passwordLimiter } from "../middleware/rateLimit.js";
 import { signToken } from "../utils/jwt.js";
+import { createSession, revokeAllForUser } from "../services/sessions.js";
 import * as data from "../services/clientData.js";
 
 const router = Router();
@@ -110,7 +111,9 @@ router.put("/me/password", passwordLimiter, requirePermission("settings_view"), 
   // password_changed_at invalidates every older token (other devices / stolen tokens); the new token below keeps THIS session.
   await query(`UPDATE users SET password_hash = $1, password_changed_at = date_trunc('second', now()), updated_at = now() WHERE id = $2`, [await bcrypt.hash(String(newPassword), 10), req.portal.userId]);
   await audit(req, { action: "password_change", resource: "user", resourceId: req.portal.userId });
-  ok(res, { token: signToken({ id: req.portal.userId, role: "CUSTOMER", client_id: req.portal.clientId }) }, "Password updated");
+  await revokeAllForUser(req.portal.userId, "PASSWORD_CHANGED");
+  const sess = await createSession(req, req.portal.userId);
+  ok(res, { token: signToken({ id: req.portal.userId, role: "CUSTOMER", client_id: req.portal.clientId, sid: sess.sid }, { expiresInSec: sess.expiresInSec }) }, "Password updated");
 }));
 
 // ---------------- dashboard (only modules the customer may see) ----------------

@@ -42,7 +42,7 @@ export function attachLiveCallsServer(server, { path = "/ws/live-calls" } = {}) 
     try { url = new URL(req.url, "http://localhost"); } catch { return socket.destroy(); }
     try {
       const token = tokenFrom(req, url);
-      const user = await authenticateToken(token);
+      const user = await authenticateToken(token, { touch: "none" });
       let perms = null;
       if (user.role === "CUSTOMER") {
         perms = await loadPerms(user.client_id);
@@ -72,7 +72,7 @@ async function revalidate() {
   for (const c of [...clients]) {
     if (c.user.exp * 1000 <= Date.now()) { c.ws.close(4401, "session expired"); clients.delete(c); continue; }
     try {
-      const u = await authenticateToken(c.token);       // disabled user / inactive customer / password change -> throws
+      const u = await authenticateToken(c.token, { touch: "none" });       // disabled user / inactive customer / password change -> throws
       c.user = u;
       if (u.role === "CUSTOMER") {
         c.perms = await loadPerms(u.client_id);

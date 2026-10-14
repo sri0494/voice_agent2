@@ -7,8 +7,13 @@ const secret = () => {
 };
 
 // HS256 is pinned on both sign and verify (no algorithm-confusion).
-export function signToken(payload) {
-  return jwt.sign(payload, secret(), { expiresIn: EXPIRES_IN(), algorithm: "HS256" });
+export function signToken(payload, { expiresInSec } = {}) {
+  return jwt.sign(payload, secret(), { expiresIn: expiresInSec || EXPIRES_IN(), algorithm: "HS256" });
+}
+
+/** Signature-checked claims of a token that may already be expired (used by logout to revoke the right session). */
+export function readExpiredToken(token) {
+  try { return jwt.verify(token, secret(), { algorithms: ["HS256"], ignoreExpiration: true }); } catch { return null; }
 }
 
 export function verifyToken(token) {

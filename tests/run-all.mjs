@@ -12,6 +12,8 @@ const here = path.dirname(fileURLToPath(import.meta.url)); const root = path.joi
 const only = process.argv.includes("--only") ? process.argv[process.argv.indexOf("--only") + 1] : null;
 const suites = [
   ["units", "security.units.test.mjs", "SSRF, environment, storage presigning, upload content, secret redaction, unsafe-word detection"],
+  ["session", "session.auth.test.mjs", "server sessions: logout, 15-min inactivity, absolute lifetime, tab liveness, revocation, concurrent tabs, roles, WebSocket"],
+  ["session-ui", "session.client.test.mjs", "browser: tab-scoped token storage, legacy purge, SESSION_EXPIRED redirect (no loops), heartbeat"],
   ["access", "security.access.test.mjs", "authentication, role matrix, CUSTOMER vs admin APIs, tenant isolation (IDOR), permissions, assignment"],
   ["recordings", "security.recordings.test.mjs", "no public file endpoint, playback/download rules, uploads, consent, retention, webhooks"],
   ["ws", "security.ws.test.mjs", "WebSocket authentication, tenant-scoped events, session expiry"],

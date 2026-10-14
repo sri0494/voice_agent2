@@ -15,7 +15,7 @@ export function notFoundHandler(req, res) {
 function mapKnownError(err) {
   if (err.type === "entity.too.large") return { status: 413, message: "Request body too large" };
   if (err.type === "entity.parse.failed" || err.type === "encoding.unsupported" || err.type === "charset.unsupported") return { status: 400, message: "Malformed request body" };
-  if (err.statusCode) return { status: err.statusCode, message: err.message };
+  if (err.statusCode) return { status: err.statusCode, message: err.message, code: err.errorCode, reason: err.reason };
   switch (err.code) {
     case "22P02": case "22007": case "22008": return { status: 400, message: "Invalid identifier or value" };
     case "23505": return { status: 409, message: "That value already exists" };
@@ -34,5 +34,5 @@ export function errorHandler(err, req, res, _next) {
   logger.error(status >= 500 ? "unhandled_error" : "request_error", {
     requestId: req.requestId, endpoint: req.originalUrl.split("?")[0], message: err.message, code: err.code, statusCode: status,
   });
-  res.status(status).json({ success: false, message: status === 500 ? "Something went wrong" : known.message });
+  res.status(status).json({ success: false, message: status === 500 ? "Something went wrong" : known.message, ...(known?.code ? { code: known.code, ...(known.reason ? { reason: known.reason } : {}) } : {}) });
 }

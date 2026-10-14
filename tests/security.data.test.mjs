@@ -179,7 +179,8 @@ check("phone numbers: create and DELETE (admin)", ph.status === 201 && (await ca
 const kdel = (await call(MGR, "POST", "/api/knowledge-bases", { name: "To delete" })).body.data;
 check("knowledge base delete: AGENT 403, MANAGER 200", (await call(AGENT, "DELETE", `/api/knowledge-bases/${kdel.id}`)).status === 403 && (await call(MGR, "DELETE", `/api/knowledge-bases/${kdel.id}`)).status === 200);
 check("public contact form still works (and a filled honeypot is silently dropped)", (await call(null, "POST", "/api/contact-requests", { name: "Lead", email: "lead@x.test", message: "Interested in a demo" })).status === 201 && await (async () => { const r = await call(null, "POST", "/api/contact-requests", { name: "Bot", email: "bot@x.test", message: "spam spam", website: "http://spam" }); return r.status === 201 && (await q(`SELECT count(*)::int n FROM contact_requests WHERE email='bot@x.test'`)).rows[0].n === 0; })());
-check("logout works and is audited", (await call(ADMIN, "POST", "/api/auth/logout")).status === 200);
+const lo = await call(null, "POST", "/api/auth/login", { email: "super_admin@lmx.test", password: PASSWORD });      // logout really ends a session now: use a throw-away one
+check("logout works and is audited", lo.status === 200 && (await call(lo.body.data.token, "POST", "/api/auth/logout")).status === 200);
 const xfer = await call(MGR, "POST", `/api/calls/${S.callA1}/transfer`, {});
 check("call transfer: uses the agent's configured number (mock provider) / arbitrary numbers need an admin", xfer.status === 200 && (await call(MGR, "POST", `/api/calls/${S.callA1}/transfer`, { toNumber: "+911234567890" })).status === 403 && (await call(S.staff.VIEWER.token, "POST", `/api/calls/${S.callA1}/transfer`, {})).status === 403);
 check("call transfer rejects a non-phone-number target (toll-fraud / markup guard)", (await call(ADMIN, "POST", `/api/calls/${S.callA1}/transfer`, { toNumber: "<Play>http://evil</Play>" })).status === 422);

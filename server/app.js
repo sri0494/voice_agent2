@@ -50,6 +50,7 @@ export function createApp() {
   app.use(express.json({ limit: "2mb" }));
   app.use(express.urlencoded({ extended: true, limit: "1mb" }));
   app.use(requestLogger);
+  app.use("/api", (req, res, next) => { res.set("Cache-Control", "no-store"); next(); });   // API data (and sessions) must never be restored from a browser/proxy cache
   app.use("/api", apiLimiter);
 
   app.get("/api/health", async (req, res) => {

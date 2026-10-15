@@ -24,7 +24,7 @@ export default function Sidebar({ open, onClose }) {
       <div className={`sidebar-backdrop ${open ? "open" : ""}`} onClick={onClose} />
       <aside className={`sidebar ${open ? "open" : ""}`}>
         <div className="sidebar-logo">
-          <div className="sidebar-logo-mark">LX</div>
+          <img src="/leomox-logo.png" alt="LeoMox" width={36} height={36} style={{ display: "block", flexShrink: 0, objectFit: "contain" }} />
           <span>LeoMox</span>
         </div>
         <nav>

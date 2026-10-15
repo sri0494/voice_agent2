@@ -30,7 +30,7 @@ export default function Login() {
     <div className="login-wrap">
       <div className="login-card">
         <div className="sidebar-logo" style={{ padding: 0, marginBottom: 22, justifyContent: "center" }}>
-          <div className="sidebar-logo-mark">LX</div>
+          <img src="/leomox-logo.png" alt="LeoMox" width={36} height={36} style={{ display: "block", flexShrink: 0, objectFit: "contain" }} />
           <span style={{ fontSize: 20 }}>LeoMox</span>
         </div>
         <div className="section-title" style={{ textAlign: "center" }}>Sign in</div>

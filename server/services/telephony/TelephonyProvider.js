@@ -218,6 +218,21 @@ export class ExotelProvider extends TelephonyProvider {
   isMock() { return false; }
 }
 
+// Used when TELEPHONY_PROVIDER=exotel but some Exotel settings are missing. The site (login, dashboard, ...) must keep running;
+// only telephony actions fail, each with a message that names exactly what to set.
+export class UnconfiguredTelephonyProvider extends TelephonyProvider {
+  constructor(message) { super(); this.message = message; }
+  _fail() { throw new Error(this.message); }
+  async makeCall() { return this._fail(); }
+  async receiveCall() { return this._fail(); }
+  async hangup() { return this._fail(); }
+  async transfer() { return this._fail(); }
+  async startRecording() { return { skipped: true, note: this.message }; }
+  async getCallStatus() { return this._fail(); }
+  async getRecording() { return this._fail(); }
+  isMock() { return false; }
+}
+
 export function createTelephonyProvider() {
   const provider = (process.env.TELEPHONY_PROVIDER || "mock").toLowerCase();
   switch (provider) {
@@ -231,11 +246,16 @@ export function createTelephonyProvider() {
         publicBaseUrl: process.env.PUBLIC_BASE_URL,
       });
     case "exotel":
-      return new ExotelProvider({
-        apiKey: process.env.TELEPHONY_API_KEY, apiToken: process.env.TELEPHONY_API_SECRET, accountSid: process.env.EXOTEL_ACCOUNT_SID,
-        subdomain: process.env.EXOTEL_SUBDOMAIN, fromNumber: process.env.TELEPHONY_PHONE_NUMBER, flowUrl: process.env.EXOTEL_FLOW_URL,
-        publicBaseUrl: process.env.PUBLIC_BASE_URL, webhookSecret: process.env.TELEPHONY_WEBHOOK_SECRET,
-      });
+      try {
+        return new ExotelProvider({
+          apiKey: process.env.TELEPHONY_API_KEY, apiToken: process.env.TELEPHONY_API_SECRET, accountSid: process.env.EXOTEL_ACCOUNT_SID,
+          subdomain: process.env.EXOTEL_SUBDOMAIN, fromNumber: process.env.TELEPHONY_PHONE_NUMBER, flowUrl: process.env.EXOTEL_FLOW_URL,
+          publicBaseUrl: process.env.PUBLIC_BASE_URL, webhookSecret: process.env.TELEPHONY_WEBHOOK_SECRET,
+        });
+      } catch (err) {
+        console.error(JSON.stringify({ level: "error", msg: "exotel_not_configured", message: err.message }));
+        return new UnconfiguredTelephonyProvider(err.message);   // never take the whole site down for a telephony setting
+      }
     // case "knowlarity": return new KnowlarityProvider({ ... });
     // case "ozonetel":   return new OzonetelProvider({ ... });
     default:

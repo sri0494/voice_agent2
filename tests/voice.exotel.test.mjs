@@ -66,7 +66,13 @@ console.log("\n== Environment validation ==");
 const base = { NODE_ENV: "production", DATABASE_URL: "x", JWT_SECRET: "j".repeat(40), STORAGE_PROVIDER: "s3", S3_BUCKET: "b", S3_ACCESS_KEY_ID: "a", S3_SECRET_ACCESS_KEY: "s", CORS_ORIGIN: "https://x" };
 const good = { ...base, TELEPHONY_PROVIDER: "exotel", TELEPHONY_API_KEY: "k", TELEPHONY_API_SECRET: "s", EXOTEL_ACCOUNT_SID: "a", EXOTEL_FLOW_URL: "u", TELEPHONY_PHONE_NUMBER: "1", PUBLIC_BASE_URL: "https://x", TELEPHONY_WEBHOOK_SECRET: SECRET, STT_PROVIDER: "sarvam", TTS_PROVIDER: "sarvam", STT_API_KEY: "k", TTS_API_KEY: "k", RECORDING_URL_ALLOWLIST: "recordings.exotel.com" };
 check("complete exotel + sarvam config is valid", validateEnv(good).errors.length === 0);
-check("exotel without EXOTEL_FLOW_URL / secret is an error", validateEnv({ ...good, EXOTEL_FLOW_URL: "", TELEPHONY_WEBHOOK_SECRET: "" }).errors.length >= 2);
+const part = validateEnv({ ...good, EXOTEL_FLOW_URL: "", TELEPHONY_WEBHOOK_SECRET: "" });
+check("exotel without EXOTEL_FLOW_URL / secret does NOT stop the site from booting; it warns by name", part.errors.length === 0 && part.warnings.some((w) => w.includes("EXOTEL_FLOW_URL")) && part.warnings.some((w) => w.includes("TELEPHONY_WEBHOOK_SECRET")));
+{ const keep = process.env.EXOTEL_FLOW_URL; delete process.env.EXOTEL_FLOW_URL; process.env.TELEPHONY_PROVIDER = "exotel";
+  const { createTelephonyProvider } = await import("../server/services/telephony/TelephonyProvider.js"); const quiet = console.error; console.error = () => {};
+  const un = createTelephonyProvider(); console.error = quiet; let msg = ""; try { await un.makeCall({ to: "+919876500009" }); } catch (e) { msg = e.message; }
+  check("missing EXOTEL_FLOW_URL at runtime: provider is created (no crash) and a call attempt says exactly what to set", msg.includes("EXOTEL_FLOW_URL") && !un.isMock());
+  process.env.EXOTEL_FLOW_URL = keep; }
 check("sarvam without a key is an error", validateEnv({ ...good, STT_API_KEY: "" }).errors.some((e) => /STT_PROVIDER=sarvam/.test(e)));
 check("exotel with mock speech warns", validateEnv({ ...good, STT_PROVIDER: "mock" }).warnings.some((w) => /sarvam/.test(w)));
 check("unknown STT provider is an error", validateEnv({ ...good, STT_PROVIDER: "foo" }).errors.length === 1);

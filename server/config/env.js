@@ -34,7 +34,7 @@ export function validateEnv(env = process.env) {
   if (tel === "twilio") for (const k of ["TELEPHONY_API_KEY", "TELEPHONY_API_SECRET", "TELEPHONY_PHONE_NUMBER", "PUBLIC_BASE_URL"]) need(v(k), `TELEPHONY_PROVIDER=twilio but ${k} is missing.`);
   else if (tel === "mock" && prod && !v("TELEPHONY_WEBHOOK_SECRET")) warnings.push("TELEPHONY_PROVIDER=mock in production: webhooks are rejected unless TELEPHONY_WEBHOOK_SECRET is set.");
   else if (tel === "exotel") {
-    for (const k of ["TELEPHONY_API_KEY", "TELEPHONY_API_SECRET", "EXOTEL_ACCOUNT_SID", "EXOTEL_FLOW_URL", "TELEPHONY_PHONE_NUMBER", "PUBLIC_BASE_URL", "TELEPHONY_WEBHOOK_SECRET"]) need(v(k), `TELEPHONY_PROVIDER=exotel but ${k} is missing.`);
+    for (const k of ["TELEPHONY_API_KEY", "TELEPHONY_API_SECRET", "EXOTEL_ACCOUNT_SID", "EXOTEL_FLOW_URL", "TELEPHONY_PHONE_NUMBER", "PUBLIC_BASE_URL", "TELEPHONY_WEBHOOK_SECRET"]) { if (!v(k)) warnings.push(`TELEPHONY_PROVIDER=exotel but ${k} is missing: the site still starts, but placing/receiving Exotel calls will fail until it is set.`); }
     if (v("TELEPHONY_WEBHOOK_SECRET") && v("TELEPHONY_WEBHOOK_SECRET").length < 24) (prod ? errors : warnings).push("TELEPHONY_WEBHOOK_SECRET should be at least 24 random characters (it is the only authentication of Exotel callbacks and the voice stream).");
     if (v("STT_PROVIDER").toLowerCase() !== "sarvam" || v("TTS_PROVIDER").toLowerCase() !== "sarvam") warnings.push("TELEPHONY_PROVIDER=exotel needs STT_PROVIDER=sarvam and TTS_PROVIDER=sarvam for real spoken conversations; with mock speech the caller hears nothing.");
     if (!v("RECORDING_URL_ALLOWLIST")) warnings.push("RECORDING_URL_ALLOWLIST is empty: set it to your Exotel recording host(s) so recordings can be copied into your private bucket.");

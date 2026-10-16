@@ -6,6 +6,8 @@ import { audit } from "../services/audit.js";
 import { callLimiter } from "../middleware/rateLimit.js";
 import { publishCallUpdate } from "../services/liveCalls.js";
 import { ApiError } from "../middleware/errorHandler.js";
+import { endVoiceStream } from "../services/voice/exotelStream.js";
+import { logger } from "../utils/logger.js";
 import { createTelephonyProvider } from "../services/telephony/TelephonyProvider.js";
 
 const router = Router();
@@ -113,14 +115,18 @@ router.post("/:id/end", callLimiter, async (req, res, next) => {
     const call = rows[0];
     if (!call) throw new ApiError(404, "Call not found");
 
-    if (call.provider_call_id) await telephonyProvider.hangup(call.provider_call_id);
+    // Ending a call must always work from the operator's side: close our audio stream first (the telephony flow then hangs up),
+    // try the provider's own hangup as a best effort (Exotel has none we can call), and mark the call ended either way.
+    const streams = endVoiceStream(call.id);
+    let providerNote = null;
+    if (call.provider_call_id) { try { await telephonyProvider.hangup(call.provider_call_id); } catch (e) { providerNote = e.message; logger.warn("call_end_provider_hangup", { callId: call.id, note: providerNote, streamsClosed: streams }); } }
     await query(
       `UPDATE calls SET status = 'Completed', ended_at = now(), updated_at = now() WHERE id = $1`,
       [req.params.id]
     );
     publishCallUpdate(req.params.id);
     await audit(req, { action: "call_end", resource: "call", resourceId: req.params.id });
-    res.json({ success: true, data: null, message: "Call ended" });
+    res.json({ success: true, data: { streamsClosed: streams }, message: "Call ended" });
   } catch (err) { next(err); }
 });
 

@@ -9,7 +9,8 @@ import { attachLiveCallsServer } from "./services/liveCalls.js";
 import { attachExotelStreamServer } from "./services/voice/exotelStream.js";
 import { startCampaignDialer } from "./services/campaigns/campaignDialer.js";
 import { startRetentionJob } from "./services/recordings.js";
-import { startSessionCleanup } from "./services/sessions.js";
+import { startCallReconciler } from "./services/telephony/reconcile.js";
+import { ensureSessionTable, startSessionCleanup } from "./services/sessions.js";
 import { verifyAuditTable } from "./services/audit.js";
 import { query } from "./db/pool.js";
 
@@ -34,10 +35,11 @@ async function assertSchemaReady() {
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, "0.0.0.0", async () => {
   logger.info("server_started", { port: PORT, env: process.env.NODE_ENV || "development" });
-  try { await assertSchemaReady(); await verifyAuditTable(); } catch (err) { logger.error("startup_check_failed", { error: err.message }); }
+  try { await ensureSessionTable(); await assertSchemaReady(); await verifyAuditTable(); } catch (err) { logger.error("startup_check_failed", { error: err.message }); }
   startCampaignDialer();
   startRetentionJob();
   startSessionCleanup();
+  startCallReconciler();
 });
 
 process.on("SIGTERM", () => {

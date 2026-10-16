@@ -47,11 +47,22 @@ export function attachExotelStreamServer(server, { path = "/ws/exotel" } = {}) {
   wss = new WebSocketServer({ noServer: true, maxPayload: 256 * 1024 });
   registerUpgrade(server, path, async (req, socket, head) => {
     let url; try { url = new URL(req.url, "http://localhost"); } catch { return socket.destroy(); }
-    if (!streamAuthorized(req, url)) return refuseUpgrade(socket, 401, "Unauthorized");
+    if (!streamAuthorized(req, url)) {
+      logger.warn("voice_stream_refused", { reason: "bad or missing token", hint: "the wss URL in the Exotel Voicebot applet must end with ?token=<your TELEPHONY_WEBHOOK_SECRET>" });
+      return refuseUpgrade(socket, 401, "Unauthorized");
+    }
     if (live.size >= MAX_STREAMS) return refuseUpgrade(socket, 503, "Too many active voice streams");
+    logger.info("voice_stream_connecting");
     wss.handleUpgrade(req, socket, head, (ws) => handleConnection(ws));
   });
   return wss;
+}
+
+/** Ends the live audio stream of a call (the Exotel flow then continues to its Hangup applet). Returns how many streams were closed. */
+export function endVoiceStream(callId) {
+  let n = 0;
+  for (const e of live) if (e.callId === callId) { try { e.ws.close(1000, "ended by operator"); n++; } catch { /* already closed */ } }
+  return n;
 }
 
 export function closeExotelStreamServer() { for (const s of live) { try { s.ws.close(); } catch { /* ignore */ } } live.clear(); try { wss?.close(); } catch { /* ignore */ } wss = null; }
@@ -69,6 +80,8 @@ function handleConnection(ws) {
     if (["Completed", "Failed", "Missed"].includes(callRow.status)) return ws.close(1008, "call already finished");
     const rate = Number(s.media_format?.sample_rate) || Number(process.env.EXOTEL_STREAM_SAMPLE_RATE) || 16000;
     if (!ALLOWED_RATES.has(rate)) { logger.warn("voice_stream_bad_rate", { rate }); return ws.close(1008, "unsupported sample rate"); }
+    entry.callId = callRow.id;
+    logger.info("voice_stream_started", { callId: callRow.id, sampleRate: rate });
     const { stt, tts } = getDeps();
     entry.session = new VoiceCallSession({
       callId: callRow.id, stt, tts, sampleRate: rate,
@@ -88,6 +101,6 @@ function handleConnection(ws) {
       default: break;                                              // connected | dtmf | mark: nothing to do
     }
   });
-  ws.on("close", () => { clearInterval(ticker); entry.session?.close(); live.delete(entry); });
+  ws.on("close", (code, reason) => { logger.info("voice_stream_closed", { callId: entry.callId || null, code, reason: String(reason || ""), started: Boolean(entry.session) }); clearInterval(ticker); entry.session?.close(); live.delete(entry); });
   ws.on("error", (e) => logger.warn("voice_stream_error", { error: e.message }));
 }

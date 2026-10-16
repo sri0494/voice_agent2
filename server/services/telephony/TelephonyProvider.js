@@ -207,7 +207,7 @@ export class ExotelProvider extends TelephonyProvider {
     const res = await this.fetch(`https://${this.host}/v1/Accounts/${this.accountSid}/Calls/${encodeURIComponent(callSid)}.json`, { headers: this._auth(), signal: AbortSignal.timeout(15000) });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(`Exotel API error ${res.status}`);
-    return { status: data?.Call?.Status || "Unknown", mock: false };
+    return { status: data?.Call?.Status || "Unknown", duration: data?.Call?.Duration !== undefined ? Number(data.Call.Duration) : null, mock: false };
   }
   async getRecording(callSid) {
     const res = await this.fetch(`https://${this.host}/v1/Accounts/${this.accountSid}/Calls/${encodeURIComponent(callSid)}.json`, { headers: this._auth(), signal: AbortSignal.timeout(15000) });

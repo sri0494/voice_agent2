@@ -208,6 +208,29 @@ for (const [action, want] of [["complete_survey", "Completed"], ["transfer", "Tr
   if (action === "complete_survey") check("completed survey call has an end time", Boolean(row.ended_at));
 }
 
+
+console.log("\n== End Call button (operator) ==");
+const ec = await newCall(); await q(`UPDATE agents SET recording_enabled = false, greeting = 'Hello there' WHERE id = $1`, [S.agentA]);
+const ev = await open(wsUrl(`?token=${encodeURIComponent(SECRET)}`));
+ev.ws.send(JSON.stringify({ event: "start", start: { stream_sid: "se", call_sid: ec.sid, media_format: { sample_rate: 16000 } } })); await sleep(600);
+const endRes = await fetch(`${ctx.base}/api/calls/${ec.id}/end`, { method: "POST", headers: { authorization: `Bearer ${S.admin}` } });
+await sleep(300);
+check("End Call returns 200 even though Exotel has no hangup API", endRes.status === 200);
+check("the call is marked Completed with an end time", (await st(ec.id)).status === "Completed" && (await st(ec.id)).ended_at);
+check("the live audio stream is closed (so the flow hangs up)", ev.closed === 1000);
+const ec2 = await newCall({ status: "Ringing" });
+check("End Call also works for a call that never opened a stream (stuck 'Ringing')", (await fetch(`${ctx.base}/api/calls/${ec2.id}/end`, { method: "POST", headers: { authorization: `Bearer ${S.admin}` } })).status === 200 && (await st(ec2.id)).status === "Completed");
+
+console.log("\n== Stuck 'Ringing' calls are reconciled with the provider ==");
+const { reconcileStaleCalls } = await import("../server/services/telephony/reconcile.js");
+const rc = await newCall(); await q(`UPDATE calls SET updated_at = now() - interval '5 minutes' WHERE id = $1`, [rc.id]);
+const rfresh = await newCall();
+const fakeProv = { isMock: () => false, getCallStatus: async (sid) => ({ status: sid === rc.sid ? "completed" : "in-progress", duration: 2 }) };
+const nChanged = await reconcileStaleCalls({ provider: fakeProv, minAgeSec: 90 });
+check("a call stuck in Ringing is finished from the provider's real status (completed, 2 s)", nChanged === 1 && (await st(rc.id)).status === "Completed" && (await st(rc.id)).duration_sec === 2);
+check("a fresh call is left alone", (await st(rfresh.id)).status === "Ringing");
+check("reconcile never reopens a finished call and does nothing with the mock provider", (await reconcileStaleCalls({ provider: { isMock: () => true } })) === 0 && (await st(rc.id)).status === "Completed");
+
 await ctx.stop();
 const { pass, fail, failures } = t.summary();
 console.log(`\n${pass} passed, ${fail} failed`); if (fail) { console.log("FAIL:", failures.join(" | ")); process.exit(1); }

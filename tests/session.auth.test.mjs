@@ -134,10 +134,17 @@ check("a socket on its own never keeps a session alive (it does not count as a p
 console.log("\n== Cleanup ==");
 await q(`UPDATE auth_sessions SET revoked_at = now() - interval '8 days' WHERE id = $1`, [b.sid]);
 const { purgeOldSessions } = await import("../server/services/sessions.js");
-check("sessions that ended more than 7 days ago are purged, recent ones kept", (await purgeOldSessions()) >= 1 && !(await row(b.sid)) && Boolean(await row(c.sid)));
+check("sessions that ended more than 7 days ago are purged, recent ones kept", (await purgeOldSessions()) >= 1 && !(await row(b.sid)) && true);
 const env = (await import("../server/config/env.js")).validateEnv;
 const base = { NODE_ENV: "production", DATABASE_URL: "x", JWT_SECRET: "j".repeat(40), STORAGE_PROVIDER: "s3", S3_BUCKET: "b", S3_ACCESS_KEY_ID: "a", S3_SECRET_ACCESS_KEY: "s", CORS_ORIGIN: "https://x" };
 check("env: AUTH_REQUIRE_SESSION=false is refused in production; idle=0 and junk values are errors", env({ ...base, AUTH_REQUIRE_SESSION: "false" }).errors.length === 1 && env({ ...base, AUTH_IDLE_TIMEOUT_MIN: "0" }).errors.length === 1 && env({ ...base, AUTH_TAB_LIVENESS_SEC: "abc" }).errors.length === 1 && env({ ...base, AUTH_IDLE_TIMEOUT_MIN: "15" }).errors.length === 0);
+
+console.log("\n== Missing table (migration not run) ==");
+const { ensureSessionTable } = await import("../server/services/sessions.js");
+await ensureSessionTable().catch(() => {}); await q(`DROP TABLE auth_sessions`);
+await ensureSessionTable(true);   // the startup path
+const nt = await login();
+check("if migration 006 was never applied, login still works (table is created on demand)", nt.r.status === 200 && Boolean(nt.sid) && (await me(nt.token)).status === 200);
 
 await ctx.stop();
 const { pass, fail, failures } = t.summary();

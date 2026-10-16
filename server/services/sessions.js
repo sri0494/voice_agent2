@@ -30,13 +30,32 @@ export const sessionError = (reason) => {
   e.errorCode = "SESSION_EXPIRED"; e.reason = reason; return e;
 };
 
+
+// Self-healing: if `npm run db:migrate` did not run on this deploy (e.g. Render's pre-deploy step is unavailable on the plan),
+// the table is created here with the SAME statements as db/migrations/006_auth_sessions.sql (idempotent), so login never breaks.
+let ensured = null;
+export function ensureSessionTable(force = false) {
+  if (force) ensured = null;
+  if (!ensured) ensured = (async () => {
+    await query(`CREATE TABLE IF NOT EXISTS auth_sessions (
+      id UUID PRIMARY KEY, user_id TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      last_activity_at TIMESTAMPTZ NOT NULL DEFAULT now(), last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      expires_at TIMESTAMPTZ NOT NULL, revoked_at TIMESTAMPTZ, revoked_reason TEXT, ip TEXT, user_agent TEXT)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_auth_sessions_user ON auth_sessions(user_id) WHERE revoked_at IS NULL`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires ON auth_sessions(expires_at)`);
+    logger.info("auth_sessions_ready");
+  })().catch((e) => { ensured = null; throw e; });
+  return ensured;
+}
+const withTable = async (fn) => { try { return await fn(); } catch (err) { if (err.code !== "42P01") throw err; ensured = null; await ensureSessionTable(); return fn(); } };
+
 export async function createSession(req, userId) {
   const { absoluteSec } = sessionConfig();
   const id = crypto.randomUUID();
-  const { rows } = await query(
+  const { rows } = await withTable(() => query(
     `INSERT INTO auth_sessions (id, user_id, expires_at, ip, user_agent)
      VALUES ($1, $2, now() + make_interval(secs => $3), $4, $5) RETURNING expires_at`,
-    [id, String(userId), absoluteSec, req?.ip || null, String(req?.headers?.["user-agent"] || "").slice(0, 300) || null]);
+    [id, String(userId), absoluteSec, req?.ip || null, String(req?.headers?.["user-agent"] || "").slice(0, 300) || null]));
   return { sid: id, expiresAt: rows[0].expires_at, expiresInSec: absoluteSec };
 }
 
@@ -49,13 +68,13 @@ export async function validateSession(sid, userId, touch = "seen") {
   if (!sid) { if (cfg.requireSession) throw sessionError("MISSING"); return null; }
   let row;
   try {
-    ({ rows: [row] } = await query(
+    ({ rows: [row] } = await withTable(() => query(
       `SELECT revoked_at, revoked_reason,
               (now() >= expires_at) AS abs_expired,
               GREATEST(0, EXTRACT(EPOCH FROM (expires_at - now())))::int AS abs_left,
               GREATEST(0, $3 - EXTRACT(EPOCH FROM (now() - last_activity_at)))::int AS idle_left,
               GREATEST(0, $4 - EXTRACT(EPOCH FROM (now() - last_seen_at)))::int AS live_left
-         FROM auth_sessions WHERE id = $1 AND user_id = $2`, [String(sid), String(userId), cfg.idleSec, cfg.livenessSec]));
+         FROM auth_sessions WHERE id = $1 AND user_id = $2`, [String(sid), String(userId), cfg.idleSec, cfg.livenessSec])));
   } catch (err) { if (err.code === "22P02") throw sessionError("MISSING"); throw err; }       // malformed sid
   if (!row) throw sessionError("MISSING");                                                    // unknown sid, or a sid of another user
   if (row.revoked_at) throw sessionError("REVOKED");

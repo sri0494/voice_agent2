@@ -47,7 +47,7 @@ export class VoiceCallSession {
   /** Speak `text` to the caller and mute our own listening until the audio has finished playing. */
   async say(text, { log = true } = {}) {
     if (this.closed || !text) return 0;
-    if (log) await this.log("AI", text);
+    if (log) await this.log("AI", text).catch((e) => logger.warn("voice_transcript_log_failed", { callId: this.callId, error: e.message }));   // a transcript problem must never drop the call
     let out;
     try { out = await this.tts.synthesize(text, { language: this.call?.language || "Telugu", sampleRate: this.sampleRate }); }
     catch (e) { logger.error("voice_tts_failed", { callId: this.callId, error: e.message }); return 0; }

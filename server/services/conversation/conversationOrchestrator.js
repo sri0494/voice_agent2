@@ -13,6 +13,16 @@ import { logger } from "../../utils/logger.js";
 
 const aiProvider = createAIProvider();
 
+// The AI provider can fail (quota, timeout, bad key). That must never crash a live call or the playground with "Something went wrong":
+// log the real reason (Render logs: ai_provider_error) and answer with the agent's fallback message instead.
+async function safeGenerate(agent, args) {
+  try { return await aiProvider.generateResponse(args); }
+  catch (err) {
+    logger.error("ai_provider_error", { agentId: agent.id, error: String(err.message).slice(0, 300) });
+    return { text: agent.fallback_message || "Sorry, I'm having trouble right now. Could you please say that again?", usedFallback: true, error: String(err.message).slice(0, 200) };
+  }
+}
+
 async function getOrCreateSession(sessionId, callId, agentId) {
   if (sessionId) {
     const { rows } = await query(`SELECT * FROM conversation_sessions WHERE id = $1`, [sessionId]);
@@ -83,9 +93,11 @@ export async function processConversationTurn({ agentId, callId, sessionId, cust
 
   // 1. Knowledge retrieval (needed before classification, since relevance
   //    depends partly on whether the KB actually covers this question).
-  const knowledgeMatches = knowledgeBaseIds.length
-    ? await searchRelevantChunks(customerText, knowledgeBaseIds, 5)
-    : [];
+  let knowledgeMatches = [];
+  if (knowledgeBaseIds.length) {
+    try { knowledgeMatches = await searchRelevantChunks(customerText, knowledgeBaseIds, 5); }
+    catch (err) { logger.error("knowledge_search_error", { agentId, error: String(err.message).slice(0, 300) }); }   // keep the conversation going without KB context
+  }
 
   // 2. Relevance / sentiment / topic / entity classification.
   const analysis = classify({ text: customerText, agent, knowledgeMatches });
@@ -93,7 +105,7 @@ export async function processConversationTurn({ agentId, callId, sessionId, cust
   // 3. Steering: decide next_action and whether to redirect off-topic.
   let nextAction = "continue";
   let offTopicTurnCount = session.off_topic_turn_count;
-  let responseText;
+  let responseText; let aiError = null;
 
   if (analysis.relevance === "UNSAFE") {
     nextAction = "transfer";
@@ -109,7 +121,7 @@ export async function processConversationTurn({ agentId, callId, sessionId, cust
       // off-topic question, so this will usually just be the AI provider's
       // generic fallback text rather than a genuinely useful brief answer —
       // this becomes meaningfully better once a real AI_PROVIDER is connected.
-      const briefResult = await aiProvider.generateResponse({
+      const briefResult = await safeGenerate(agent, {
         systemPrompt: agent.system_prompt || "",
         context: "",
         temperature: agent.temperature,
@@ -128,14 +140,15 @@ export async function processConversationTurn({ agentId, callId, sessionId, cust
       nextAction = "ask_clarification";
       responseText = agent.fallback_message || "I don't have that information in my available information. I can help you with the services covered by this agent.";
     } else {
-      const aiResult = await aiProvider.generateResponse({
+      const aiResult = await safeGenerate(agent, {
         systemPrompt: agent.system_prompt || "",
         context,
+        knowledgeOnly: Boolean(agent.knowledge_only_mode),
         temperature: agent.temperature,
         fallbackMessage: agent.fallback_message,
         messages: [...conversationHistory, { role: "user", content: customerText }],
       });
-      responseText = aiResult.text;
+      responseText = aiResult.text; aiError = aiResult.error || null;
       if (analysis.relevance === "SURVEY_RESPONSE") nextAction = "complete_survey";
       else if (Object.keys(analysis.entities).length > 0) nextAction = "collect_information";
     }
@@ -180,5 +193,6 @@ export async function processConversationTurn({ agentId, callId, sessionId, cust
     next_action: nextAction,
     objective_progress: objectiveProgress,
     confidence: analysis.confidence,
+    ...(aiError ? { ai_error: aiError } : {}),
   };
 }

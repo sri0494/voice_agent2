@@ -32,3 +32,9 @@
 ## Trade-offs
 - Opening a link in a brand-new tab requires login again (that is what tab-scoped means).
 - A closed tab restored within ~3 minutes may still be logged in.
+
+## Troubleshooting: login shows "Something went wrong"
+Login writes a row to `auth_sessions`. If migration 006 was not applied (Render's pre-deploy command did not run), that insert fails with a 500.
+Since this version the table is created automatically at server start (and again on demand), so no manual step is needed.
+To confirm in Render > Logs, look for `auth_sessions_ready` after start, or for `relation "auth_sessions" does not exist` before the fix.
+Manual alternative: in the Neon SQL editor run the contents of `db/migrations/006_auth_sessions.sql`.

@@ -26,7 +26,7 @@ export async function query(text, params) {
   const start = Date.now();
   const res = await pool.query(text, params);
   const duration = Date.now() - start;
-  if (process.env.NODE_ENV === "development") {
+  if (process.env.DB_LOG === "true") {   // opt-in: logging every query buried the call-related log lines
     console.log("[db]", { text: text.split("\n")[0].slice(0, 80), duration, rows: res.rowCount });
   }
   return res;

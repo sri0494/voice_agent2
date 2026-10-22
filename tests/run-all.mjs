@@ -14,6 +14,7 @@ const suites = [
   ["units", "security.units.test.mjs", "SSRF, environment, storage presigning, upload content, secret redaction, unsafe-word detection"],
   ["session", "session.auth.test.mjs", "server sessions: logout, 15-min inactivity, absolute lifetime, tab liveness, revocation, concurrent tabs, roles, WebSocket"],
   ["session-ui", "session.client.test.mjs", "browser: tab-scoped token storage, legacy purge, SESSION_EXPIRED redirect (no loops), heartbeat"],
+  ["ai", "ai.gemini.test.mjs", "Gemini request (thinking budget, retries), no-context handling, provider failures"],
   ["access", "security.access.test.mjs", "authentication, role matrix, CUSTOMER vs admin APIs, tenant isolation (IDOR), permissions, assignment"],
   ["recordings", "security.recordings.test.mjs", "no public file endpoint, playback/download rules, uploads, consent, retention, webhooks"],
   ["ws", "security.ws.test.mjs", "WebSocket authentication, tenant-scoped events, session expiry"],
